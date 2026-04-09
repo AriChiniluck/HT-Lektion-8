@@ -5,14 +5,14 @@ from langchain_core.tools import tool
 
 from config import PLANNER_SYSTEM_PROMPT, build_chat_model
 from schemas import ResearchPlan
-from tools import web_search, knowledge_search
+from tools import knowledge_search
 
 
 @lru_cache(maxsize=1)
 def get_planner_agent():
     return create_agent(
         model=build_chat_model(temperature=0.1),
-        tools=[web_search, knowledge_search],
+        tools=[knowledge_search],
         system_prompt=PLANNER_SYSTEM_PROMPT,
         response_format=ResearchPlan,
     )
