@@ -84,6 +84,10 @@ def get_last_critique_payload(thread_id: str) -> dict | None:
     """Return the last critique payload for a given thread (used by main.py for debug display)."""
     return _RUN_LIMITS.get(thread_id, {}).get("last_critique_payload")
 
+def reset_awaiting_save(thread_id: str) -> None:
+    """Reset awaiting_save flag so auto-save does not trigger after a HITL rejection."""
+    if thread_id in _RUN_LIMITS:
+        _RUN_LIMITS[thread_id]["awaiting_save"] = False
 
 def _build_research_followup_from_critique(
     payload: dict | None, last_findings: str | None = None
