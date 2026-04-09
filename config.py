@@ -37,8 +37,8 @@ class Settings(BaseSettings):
     embedding_model: str = Field(default="text-embedding-3-small")
     reranker_model: str = Field(default="BAAI/bge-reranker-base")
 
-    max_search_results: int = Field(default=5, ge=1, le=20)
-    max_url_content_length: int = Field(default=5000, ge=500, le=20000)
+    max_search_results: int = Field(default=4, ge=1, le=20)
+    max_url_content_length: int = Field(default=3000, ge=500, le=20000)
     url_fetch_timeout_sec: int = Field(default=10, ge=3, le=60)
 
     llm_timeout_sec: int = Field(default=90, ge=10, le=300)
@@ -52,7 +52,7 @@ class Settings(BaseSettings):
     hybrid_top_k: int = Field(default=10, ge=1, le=20)
     rerank_top_n: int = Field(default=4, ge=1, le=10)
 
-    critique_max_rounds: int = Field(default=3, ge=1, le=5)
+    critique_max_rounds: int = Field(default=2, ge=1, le=5)
     debug: bool = Field(default=False)
 
     model_config = SettingsConfigDict(
