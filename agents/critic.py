@@ -5,14 +5,14 @@ from langchain_core.tools import tool
 
 from config import CRITIC_SYSTEM_PROMPT, build_chat_model
 from schemas import CritiqueResult
-from tools import web_search, read_url, knowledge_search
+from tools import knowledge_search
 
 
 @lru_cache(maxsize=1)
 def get_critic_agent():
     return create_agent(
         model=build_chat_model(temperature=0.0),
-        tools=[web_search, read_url, knowledge_search],
+        tools=[knowledge_search],
         system_prompt=CRITIC_SYSTEM_PROMPT,
         response_format=CritiqueResult,
     )
