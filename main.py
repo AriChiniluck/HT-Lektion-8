@@ -10,7 +10,7 @@ from langgraph.types import Command
 from config import settings
 from ingest import ingest
 from retriever import get_retriever
-from supervisor import supervisor, get_last_critique_payload
+from supervisor import supervisor, get_last_critique_payload, reset_awaiting_save
 
 THREAD_ID = f"hw8-{uuid4().hex[:8]}"
 
@@ -330,12 +330,21 @@ def resolve_interrupts(interrupts, config) -> None:
 
         elif decision == "edit":
             user_feedback = input("Feedback > ").strip()
+            int_payload = getattr(current, "value", {}) or {}
+            action_requests = int_payload.get("action_requests", [])
+            original = action_requests[0] if action_requests else {}
+            orig_name = original.get("name", "save_report")
+            orig_args = dict(original.get("args") or original.get("arguments") or {})
+            orig_args["feedback"] = user_feedback
             payload = Command(
                 resume={
                     "decisions": [
                         {
                             "type": "edit",
-                            "edited_action": {"feedback": user_feedback},
+                            "edited_action": {
+                                "name": orig_name,
+                                "args": orig_args,
+                            },
                         }
                     ]
                 }
@@ -346,6 +355,8 @@ def resolve_interrupts(interrupts, config) -> None:
                 input("Reason (optional): ").strip()
                 or "User rejected saving the report."
             )
+            thread_id = (config.get("configurable") or {}).get("thread_id", "")
+            reset_awaiting_save(thread_id)
             payload = Command(
                 resume={
                     "decisions": [
