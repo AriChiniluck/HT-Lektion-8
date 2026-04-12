@@ -10,7 +10,7 @@ from langgraph.types import Command
 from config import settings
 from ingest import ingest
 from retriever import get_retriever
-from supervisor import supervisor, get_last_critique_payload, reset_awaiting_save
+from supervisor import supervisor, get_last_critique_payload, reset_awaiting_save, reset_supervisor_limits
 
 THREAD_ID = f"hw8-{uuid4().hex[:8]}"
 
@@ -443,8 +443,25 @@ def main() -> None:
             print("\n\nStopped by user.")
             break
         except Exception as exc:
-            print(f"\nError: {exc}")
+            msg = str(exc)
+            exc_type = type(exc).__name__
+            is_dangling_tool_calls = (
+                ("tool_calls" in msg and "tool messages" in msg)
+                or "InvalidUpdateError" in exc_type
+                or "GraphInterrupt" in exc_type
+            )
+            if is_dangling_tool_calls:
+                new_thread = f"hw8-{uuid4().hex[:8]}"
+                config["configurable"]["thread_id"] = new_thread
+                reset_supervisor_limits(new_thread)
+                console_print(
+                    "\n[Recovery] Попередній запит завис і залишив незакриті tool-calls. "
+                    f"Стартую новий thread: {new_thread}. Повторіть запит."
+                )
+            else:
+                print(f"\nError: {exc}")
 
 
 if __name__ == "__main__":
     main()
+
