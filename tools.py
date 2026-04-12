@@ -113,8 +113,6 @@ def _sanitize_filename(filename: str, content: str = "") -> str:
     candidate = _slugify_filename(stem)
     if not candidate:
         candidate = _slugify_filename(_extract_title_from_markdown(content or "") or "report")
-    if not candidate:
-        candidate = "report"
 
     timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
     return f"{candidate}_{timestamp}.md"
