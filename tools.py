@@ -114,9 +114,10 @@ def _sanitize_filename(filename: str, content: str = "") -> str:
     if not candidate:
         candidate = _slugify_filename(_extract_title_from_markdown(content or "") or "report")
     if not candidate:
-        candidate = f"report_{datetime.now().strftime('%Y-%m-%d_%H%M%S')}"
+        candidate = "report"
 
-    return f"{candidate}.md"
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    return f"{candidate}_{timestamp}.md"
 
 
 def _is_auto_save_note(feedback: str) -> bool:
