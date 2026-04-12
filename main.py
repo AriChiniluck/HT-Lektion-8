@@ -208,6 +208,7 @@ def stream_payload(payload, config) -> list:
     interrupts = []
     final_messages: list[str] = []
     research_round = 0
+    save_report_done = False
     thread_id = (config.get("configurable") or {}).get("thread_id", "")
 
     for chunk in supervisor.stream(
@@ -249,25 +250,28 @@ def stream_payload(payload, config) -> list:
             if text.strip():
                 final_messages.append(text)
 
-        if settings.debug:
-            tools_payload = data.get("tools") or {}
-            for message in tools_payload.get("messages", []):
-                tool_name = getattr(message, "name", "tool")
-                content = extract_text(getattr(message, "content", ""))
-                if not content.strip():
-                    continue
+        tools_payload = data.get("tools") or {}
+        for message in tools_payload.get("messages", []):
+            tool_name = getattr(message, "name", "tool")
+            content = extract_text(getattr(message, "content", ""))
+            if not content.strip():
+                continue
 
+            if tool_name == "save_report" and content.startswith("Report saved to"):
+                save_report_done = True
+
+            if settings.debug:
                 if tool_name == "critique":
                     pass  # last_critique_payload now stored centrally in supervisor._RUN_LIMITS
 
                 _show_debug_tool_result(tool_name, content)
 
     final_text = "\n".join(msg for msg in final_messages if msg.strip()).strip()
-    if final_text and not interrupts:
+    if final_text and not interrupts and not save_report_done:
         console_print(final_text)
 
     return interrupts
-
+    
 
 def show_interrupt(interrupt) -> None:
     payload = getattr(interrupt, "value", {}) or {}
@@ -370,6 +374,8 @@ def resolve_interrupts(interrupts, config) -> None:
 
         print("\nAgent:")
         pending = stream_payload(payload, config)
+        if not pending and decision == "approve":
+        print("Report saved.")
 
 
 def main() -> None:
