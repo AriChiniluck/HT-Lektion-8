@@ -44,8 +44,13 @@ def research(plan: str) -> str:
         f"Research plan:\n{plan_text}\n\n"
         "Important: answer in the same language as the user's request, consult the local knowledge base first for course topics, and keep source metadata in the form 'Source / page / Relevance' when available."
     )
-    result = get_research_agent().invoke(
-        {"messages": [{"role": "user", "content": research_request}]}
+    try:
+        result = get_research_agent().invoke(
+            {"messages": [{"role": "user", "content": research_request}]},
+            config={"recursion_limit": 17},
+        )
+    except Exception as exc:
+        return f"Research agent failed: {exc}"
     )
 
     messages = result.get("messages", [])
