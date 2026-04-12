@@ -3,7 +3,6 @@ from __future__ import annotations
 import ipaddress
 import re
 import socket
-import sys
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
