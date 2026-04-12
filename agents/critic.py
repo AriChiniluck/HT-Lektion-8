@@ -21,12 +21,18 @@ def get_critic_agent():
 @tool
 def critique(original_request: str, findings: str, plan: str = "") -> str:
     """Verify findings against the original request and return a structured approve/revise critique."""
+   # Limit findings size to avoid unnecessary token spend — critic evaluates quality, not volume.
+    MAX_FINDINGS_LEN = 8000
+    findings_text = str(findings or "").strip()
+    if len(findings_text) > MAX_FINDINGS_LEN:
+        findings_text = findings_text[:MAX_FINDINGS_LEN] + "\n\n[... findings truncated to fit evaluation context ...]"
+    
     critique_request = "Original user request:\n" + original_request + "\n\n"
     if plan.strip():
         critique_request += "Research plan that was executed:\n" + plan.strip() + "\n\n"
     critique_request += (
         "Current research findings:\n"
-        f"{findings}\n\n"
+        f"{findings_text}\n\n"
         "Important: return all explanation fields in the same language as the user's request/findings."
     )
     try:
