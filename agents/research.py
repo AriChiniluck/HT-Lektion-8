@@ -1,4 +1,5 @@
 from functools import lru_cache
+import json
 
 from langchain.agents import create_agent
 from langchain_core.tools import tool
@@ -39,9 +40,29 @@ def research(plan: str) -> str:
     if not plan_text:
         return "Research plan is empty."
 
+    # First calls arrive as a ResearchPlan JSON from the Planner.
+    # Revision calls arrive as plain text from the middleware — pass through as-is.
+    try:
+        parsed = json.loads(plan_text)
+        if isinstance(parsed, dict) and "goal" in parsed:
+            goal = parsed.get("goal", "")
+            queries = parsed.get("search_queries") or []
+            sources = parsed.get("sources_to_check") or []
+            output_format = parsed.get("output_format", "")
+            parts = [f"Research goal: {goal}"]
+            if queries:
+                parts.append("Search queries to execute:\n" + "\n".join(f"- {q}" for q in queries))
+            if sources:
+                parts.append("Sources to consult: " + ", ".join(sources))
+            if output_format:
+                parts.append(f"Expected output format: {output_format}")
+            plan_text = "\n\n".join(parts)
+    except (json.JSONDecodeError, TypeError):
+        pass  # plain text revision plan — use as-is
+
     research_request = (
         "Execute the following research plan and gather evidence.\n\n"
-        f"Research plan:\n{plan_text}\n\n"
+        f"{plan_text}\n\n"
         "Important: answer in the same language as the user's request, consult the local knowledge base first for course topics, and keep source metadata in the form 'Source / page / Relevance' when available."
     )
     try:
