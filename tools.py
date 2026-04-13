@@ -3,6 +3,7 @@ from __future__ import annotations
 import ipaddress
 import re
 import socket
+import sys
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
@@ -292,4 +293,14 @@ def save_report(filename: str, content: str, feedback: str = "") -> str:
 
     path.write_text(normalized_content, encoding="utf-8")
     debug_print(f"  📎 saved to: {path}")
-    return f"Report saved to {path}"
+
+    # Return a compact excerpt so the Supervisor can include key findings in its
+    # final reply without re-generating the full content (saves output tokens).
+    excerpt = normalized_content.strip()[:2000]
+    if len(normalized_content.strip()) > 2000:
+        excerpt += "\n\n[\u2026full report saved to file\u2026]"
+    return (
+        f"Report saved to {path}\n\n"
+        f"--- REPORT EXCERPT (include key findings from this in your reply) ---\n"
+        f"{excerpt}"
+    )
