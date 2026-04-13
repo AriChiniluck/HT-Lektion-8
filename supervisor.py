@@ -42,9 +42,17 @@ def _get_thread_id(request: ToolCallRequest) -> str:
     return str(configurable.get("thread_id", "default-thread"))
 
 
+_INVALID_JSON_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+
+
+def _sanitize_text(text: str) -> str:
+    """Strip control characters that break JSON serialisation of the OpenAI API payload."""
+    return _INVALID_JSON_CHARS.sub("", text)
+
+
 def _tool_content_to_text(content) -> str:
     if isinstance(content, str):
-        return content
+        return _sanitize_text(content)
     if isinstance(content, list):
         parts = []
         for item in content:
@@ -54,8 +62,8 @@ def _tool_content_to_text(content) -> str:
                     parts.append(text)
             elif isinstance(item, str):
                 parts.append(item)
-        return "".join(parts)
-    return str(content) if content else ""
+        return _sanitize_text("".join(parts))
+    return _sanitize_text(str(content)) if content else ""
 
 
 def _prepend_best_effort_disclaimer(content: str) -> str:
@@ -332,7 +340,7 @@ class RevisionLimitMiddleware(AgentMiddleware):
 @lru_cache(maxsize=1)
 def build_supervisor():
     return create_agent(
-        model=build_chat_model(temperature=0.0),
+        model=build_chat_model(temperature=0.0, model=settings.supervisor_model),
         tools=[plan, research, critique, save_report],
         system_prompt=SUPERVISOR_SYSTEM_PROMPT,
         middleware=[
