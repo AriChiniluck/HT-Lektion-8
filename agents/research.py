@@ -4,7 +4,7 @@ import json
 from langchain.agents import create_agent
 from langchain_core.tools import tool
 
-from config import RESEARCH_SYSTEM_PROMPT, build_chat_model
+from config import RESEARCH_SYSTEM_PROMPT, build_chat_model, settings
 from tools import web_search, read_url, knowledge_search
 
 
@@ -27,7 +27,7 @@ def _content_to_text(content) -> str:
 @lru_cache(maxsize=1)
 def get_research_agent():
     return create_agent(
-        model=build_chat_model(temperature=0.2),
+        model=build_chat_model(temperature=0.2, model=settings.researcher_model),
         tools=[web_search, read_url, knowledge_search],
         system_prompt=RESEARCH_SYSTEM_PROMPT,
     )
@@ -68,14 +68,14 @@ def research(plan: str) -> str:
     try:
         result = get_research_agent().invoke(
             {"messages": [{"role": "user", "content": research_request}]},
-            config={"recursion_limit": 17},
+            config={"recursion_limit": 17},  # ~8 tool calls max (2 nodes per call + 1 final)
         )
     except Exception as exc:
         return f"Research agent failed: {exc}"
-    )
 
     messages = result.get("messages", [])
     if not messages:
         return "Researcher did not return any findings."
 
     return _content_to_text(getattr(messages[-1], "content", ""))
+
