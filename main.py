@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import sys
+import time
+from contextlib import contextmanager
 from pathlib import Path
 from uuid import uuid4
 
@@ -11,6 +13,47 @@ from config import settings
 from ingest import ingest
 from retriever import get_retriever
 from supervisor import supervisor, get_last_critique_payload, reset_awaiting_save, reset_supervisor_limits
+
+try:
+    from langchain_community.callbacks import get_openai_callback as _get_oai_cb
+    _HAS_OAI_CB = True
+except Exception:
+    _HAS_OAI_CB = False
+
+
+@contextmanager
+def _open_cb():
+    """Context manager that tracks OpenAI token usage and cost if available."""
+    if _HAS_OAI_CB:
+        with _get_oai_cb() as cb:
+            yield cb
+    else:
+        yield None
+
+
+def _print_usage(t0: float, cb) -> None:
+    """Print elapsed time and token cost after a pipeline run."""
+    elapsed = time.monotonic() - t0
+    parts = [f"\u23f1  {elapsed:.1f}s"]
+    if cb is not None and cb.total_tokens:
+        parts.append(f"tokens: {cb.total_tokens:,}")
+        cost = cb.total_cost or 0.0
+        if not cost:
+            try:
+                from langchain_community.callbacks.openai_info import MODEL_COST_PER_1K_TOKENS
+                m = settings.model_name.lower()
+                input_rate = MODEL_COST_PER_1K_TOKENS.get(m, 0)
+                output_rate = MODEL_COST_PER_1K_TOKENS.get(f"{m}-completion", 0)
+                if input_rate:
+                    prompt = getattr(cb, "prompt_tokens", 0) or 0
+                    completion = getattr(cb, "completion_tokens", 0) or 0
+                    cost = (prompt * input_rate + completion * output_rate) / 1000
+            except Exception:
+                pass
+        if cost:
+            parts.append(f"cost: ${cost:.5f} USD")
+    print("  |  ".join(parts))
+
 
 THREAD_ID = f"hw8-{uuid4().hex[:8]}"
 
@@ -271,7 +314,7 @@ def stream_payload(payload, config) -> list:
         console_print(final_text)
 
     return interrupts
-    
+
 
 def show_interrupt(interrupt) -> None:
     payload = getattr(interrupt, "value", {}) or {}
@@ -373,9 +416,12 @@ def resolve_interrupts(interrupts, config) -> None:
             )
 
         print("\nAgent:")
-        pending = stream_payload(payload, config)
+        _t0 = time.monotonic()
+        with _open_cb() as _cb:
+            pending = stream_payload(payload, config)
+        _print_usage(_t0, _cb)
         if not pending and decision == "approve":
-        print("Report saved.")
+            print("Report saved.")
 
 
 def main() -> None:
@@ -437,13 +483,16 @@ def main() -> None:
                 continue
 
             print("\nAgent:")
-            interrupts = stream_payload(
-                {"messages": [{"role": "user", "content": user_input}]},
-                config,
-            )
+            _t0 = time.monotonic()
+            with _open_cb() as _cb:
+                interrupts = stream_payload(
+                    {"messages": [{"role": "user", "content": user_input}]},
+                    config,
+                )
 
-            if interrupts:
-                resolve_interrupts(interrupts, config)
+                if interrupts:
+                    resolve_interrupts(interrupts, config)
+            _print_usage(_t0, _cb)
 
         except KeyboardInterrupt:
             print("\n\nStopped by user.")
@@ -470,4 +519,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
 
