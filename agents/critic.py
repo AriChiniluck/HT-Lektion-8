@@ -3,7 +3,7 @@ from functools import lru_cache
 from langchain.agents import create_agent
 from langchain_core.tools import tool
 
-from config import CRITIC_SYSTEM_PROMPT, build_chat_model
+from config import CRITIC_SYSTEM_PROMPT, build_chat_model, settings
 from schemas import CritiqueResult
 from tools import knowledge_search
 
@@ -11,7 +11,7 @@ from tools import knowledge_search
 @lru_cache(maxsize=1)
 def get_critic_agent():
     return create_agent(
-        model=build_chat_model(temperature=0.0),
+        model=build_chat_model(temperature=0.0, model=settings.critic_model),
         tools=[knowledge_search],
         system_prompt=CRITIC_SYSTEM_PROMPT,
         response_format=CritiqueResult,
@@ -21,12 +21,12 @@ def get_critic_agent():
 @tool
 def critique(original_request: str, findings: str, plan: str = "") -> str:
     """Verify findings against the original request and return a structured approve/revise critique."""
-   # Limit findings size to avoid unnecessary token spend — critic evaluates quality, not volume.
+    # Limit findings size to avoid unnecessary token spend — critic evaluates quality, not volume.
     MAX_FINDINGS_LEN = 8000
     findings_text = str(findings or "").strip()
     if len(findings_text) > MAX_FINDINGS_LEN:
         findings_text = findings_text[:MAX_FINDINGS_LEN] + "\n\n[... findings truncated to fit evaluation context ...]"
-    
+
     critique_request = "Original user request:\n" + original_request + "\n\n"
     if plan.strip():
         critique_request += "Research plan that was executed:\n" + plan.strip() + "\n\n"
